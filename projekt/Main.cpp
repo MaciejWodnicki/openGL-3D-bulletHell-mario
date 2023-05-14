@@ -20,7 +20,9 @@
 #include <conio.h>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
+double mouseHorizontalDelta(GLFWwindow* window);
 
 void spawnEnemies();
 void ResetScene();
@@ -37,6 +39,7 @@ int score = 0;
 
 double deltaT;
 
+double mouseDeltaX = 0;
 glm::vec4 BackgroundColor = glm::vec4(0.7f, 0.7f, 0.9f, 1.0f);
 bool reset = false;
 
@@ -71,6 +74,8 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
@@ -476,9 +481,14 @@ int main()
         //projection matrix
         glm::mat4 ProjMatrix = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.01f, 100.0f);
 
+        mouseDeltaX += mouseHorizontalDelta(window)/400;
+
+        //mouseDeltaX = glm::clamp<float>((float)mouseDeltaX, 0.0f, 1.0f);
+        std::cout << mouseDeltaX << std::endl;
+
         //view matrix
         glm::vec3 camera_destination = glm::vec3(player.position.x, 0.0f, player.position.z);
-        glm::vec3 camera_position = glm::vec3(player.position.x + 11.0f * cos(player.rotationAngle), 6.0f, player.position.z + 11.0f* sin(player.rotationAngle));
+        glm::vec3 camera_position = glm::vec3(player.position.x + 11.0f * cos(mouseDeltaX), 4.0f, player.position.z + 11.0f* sin(mouseDeltaX));
         glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 
         glm::mat4 ViewMatrix = glm::lookAt(camera_position, camera_destination, camera_up);
@@ -566,7 +576,7 @@ int main()
 
             glDrawArrays(GL_TRIANGLES, 6, 36);
         }
-        
+      
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -584,17 +594,17 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
         player.rotationAngle -= glm::radians(player.rotSpeed);
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) 
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         player.rotationAngle += glm::radians(player.rotSpeed);
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
         float x = -player.speed * cos(player.rotationAngle);
         float z = -player.speed * sin(player.rotationAngle);
         player.Move(glm::vec3(x, 0.0f, z));
     }
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
         float x = player.speed * cos(player.rotationAngle);
         float z = player.speed * sin(player.rotationAngle);
@@ -617,6 +627,19 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
         reset = true; 
 }
+
+double previousX = 0;
+double mouseHorizontalDelta(GLFWwindow* window)
+{
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+    double deltaX = xpos - previousX;
+
+    previousX = xpos;
+    return deltaX;
+}
+
 
 void updateScene()
 {
@@ -674,6 +697,7 @@ void ResetScene()
     if (reset == true)
     {
         BackgroundColor = glm::vec4(0.7f, 0.7f, 0.9f, 1.0f);
+        mouseDeltaX = glm::radians(90.0f);
         
         player.position = glm::vec3(0.0f, 0.0f, 0.0f);
         
@@ -766,4 +790,9 @@ void onEnemyDeath(int enmeyIndex)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
+}
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    
 }
