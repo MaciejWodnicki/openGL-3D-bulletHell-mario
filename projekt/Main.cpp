@@ -62,7 +62,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Mario?", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Mario Survivors", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -344,7 +344,7 @@ int main()
 
     ///////////////////////////////////////////
     // configure depth map FBO
-    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    const unsigned int SHADOW_WIDTH = 4096, SHADOW_HEIGHT = 4096;
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create depth texture
@@ -421,7 +421,7 @@ int main()
         //Player
 
         ModelMatrix = glm::translate(glm::mat4(1.0f), player.position);
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, -player.rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
         glDrawArrays(GL_TRIANGLES, 6, 36);
@@ -478,8 +478,8 @@ int main()
 
         //view matrix
         glm::vec3 camera_destination = glm::vec3(player.position.x, 0.0f, player.position.z);
-        glm::vec3 camera_position = glm::vec3(player.position.x, 10.0f, player.position.z + 11.0f);
-        glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);;
+        glm::vec3 camera_position = glm::vec3(player.position.x + 11.0f * cos(player.rotationAngle), 6.0f, player.position.z + 11.0f* sin(player.rotationAngle));
+        glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 
         glm::mat4 ViewMatrix = glm::lookAt(camera_position, camera_destination, camera_up);
 
@@ -507,7 +507,7 @@ int main()
         //Ground
         ModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 1.0f, 2.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(4.0f, 1.0f, 4.0f));
         glUniformMatrix4fv(5, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
         glBindTexture(GL_TEXTURE_2D, textureGrassId);
@@ -520,7 +520,7 @@ int main()
         //Player
 
         ModelMatrix = glm::translate(glm::mat4(1.0f), player.position);
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, -player.rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         glUniformMatrix4fv(5, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
         glBindTexture(GL_TEXTURE_2D, texturePlayerId);
@@ -585,14 +585,22 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-        player.Move(glm::vec3(-player.speed, 0.0f, 0.0f));
+        player.rotationAngle -= glm::radians(player.rotSpeed);
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) 
+        player.rotationAngle += glm::radians(player.rotSpeed);
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-        player.Move(glm::vec3(0.0f, 0.0f, -player.speed));
+    {
+        float x = -player.speed * cos(player.rotationAngle);
+        float z = -player.speed * sin(player.rotationAngle);
+        player.Move(glm::vec3(x, 0.0f, z));
+    }
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-        player.Move(glm::vec3(0.0f, 0.0f, player.speed));
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-        player.Move(glm::vec3(player.speed, 0.0f, 0.0f));
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !(player.jump_active)) {
+    {
+        float x = player.speed * cos(player.rotationAngle);
+        float z = player.speed * sin(player.rotationAngle);
+        player.Move(glm::vec3(x, 0.0f, z));
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !(player.jump_active) && player.canJump) {
         player.jump_speed = player.max_jump_speed;
         g = max_g;
         player.jump_active = true;
@@ -603,6 +611,9 @@ void processInput(GLFWwindow* window)
         g = max_g * 0.05f;
         player.jump_speed = 0;
     }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && player.jump_active)
+        g = g * 10;
+
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
         reset = true; 
 }
@@ -636,8 +647,8 @@ void updateScene()
     for (auto it = bullets.begin(); it != bullets.end();)
     {
         if ((*it) == nullptr ||
-            glm::abs((*it)->getPos().x) > 20.0f ||
-            glm::abs((*it)->getPos().z) > 20.0f)
+            glm::abs((*it)->getPos().x) > player.movementBorders ||
+            glm::abs((*it)->getPos().z) > player.movementBorders)
         {
             it = bullets.erase(it);
             continue;
@@ -666,11 +677,13 @@ void ResetScene()
         
         player.position = glm::vec3(0.0f, 0.0f, 0.0f);
         
-        player.speed = 0.3f;
+        player.speed = player.maxSpeed;
+        player.rotationAngle = player.initRotation;
         enemyCount = defaultEnemyCount;
 
         reset = false;
         shootingIsEnabled = true;
+        player.canJump = true;
     }
 }
 
@@ -679,6 +692,7 @@ void PlayerDied()
     shootingIsEnabled = false;
     player.speed = 0.0f;
     player.position = glm::vec3(0.0f);
+    player.canJump = false;
 
     score = 0;
 
