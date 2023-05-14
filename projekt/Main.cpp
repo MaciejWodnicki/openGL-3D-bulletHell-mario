@@ -17,6 +17,7 @@
 #include <deque>
 #include <vector>
 #include <memory>
+#include <conio.h>
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -31,6 +32,8 @@ const unsigned int SCREEN_WIDTH = 1200;
 const unsigned int SCREEN_HEIGHT = 800;
 
 //global variables
+int score = 0;
+
 double deltaT;
 
 glm::vec4 BackgroundColor = glm::vec4(0.7f, 0.7f, 0.9f, 1.0f);
@@ -394,7 +397,7 @@ int main()
         glm::mat4 lightProjection, lightView;
         glm::mat4 lightSpaceMatrix;
         float near_plane = 1.0f, far_plane = 20.5f;
-        lightProjection = glm::ortho(-12.0f, 12.0f, -12.0f, 12.0f, near_plane, far_plane);
+        lightProjection = glm::ortho(-50.0f, 50.0f, -50.0f, 50.0f, near_plane, far_plane);
         lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, -1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
         glUniformMatrix4fv(1, 1, GL_FALSE, &lightSpaceMatrix[0][0]);
@@ -413,7 +416,7 @@ int main()
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        //modify model matrix
+        //Player
 
         ModelMatrix = glm::translate(glm::mat4(1.0f), player.position);
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -472,8 +475,8 @@ int main()
         glm::mat4 ProjMatrix = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.01f, 100.0f);
 
         //view matrix
-        glm::vec3 camera_destination = glm::vec3(0.0f, 0.0f, 0.0f);
-        glm::vec3 camera_position = glm::vec3(0.0f, 10.0f, 11.0f);
+        glm::vec3 camera_destination = glm::vec3(player.position.x, 0.0f, player.position.z);
+        glm::vec3 camera_position = glm::vec3(player.position.x, 10.0f, player.position.z + 11.0f);
         glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);;
 
         glm::mat4 ViewMatrix = glm::lookAt(camera_position, camera_destination, camera_up);
@@ -500,6 +503,11 @@ int main()
         // scene objects
         
         //Ground
+        ModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 1.0f, 2.0f));
+        glUniformMatrix4fv(5, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
+
         glBindTexture(GL_TEXTURE_2D, textureGrassId);
         glUseProgram(shaderProgram);
         glBindVertexArray(VertexArrayId);
@@ -610,7 +618,7 @@ void updateScene()
         
         if (shootingIsEnabled)
         {
-            std::unique_ptr<Bullet> newBullet(enemy->RandomRoam(player.position, (float)glfwGetTime()));
+            std::unique_ptr<Bullet> newBullet(enemy->RandomRoam(player.position, (float)glfwGetTime(), player.position.x-10, player.position.x + 10 )); // look for a spot around the player
             if(newBullet)
                 bullets.push_back(std::move(newBullet));
         }
@@ -620,26 +628,51 @@ void updateScene()
         if (enemyCollision == 2)
         {
             enemy.release();
+            score++;
+            system("CLS");
+            std::cout <<"Score: " << score << std::endl;
         }
         else if (enemyCollision == 1)
             PlayerDied();
     }
 
-    for (auto& bullet : bullets)
+    for (auto it = bullets.begin(); it != bullets.end();)
     {
-        if (!bullet)
-            continue;
-        if (glm::distance(bullet->getPos(),glm::vec3(0.0f)) > 25)
+        if ((*it) == nullptr ||
+            glm::abs((*it)->getPos().x) > 20.0f ||
+            glm::abs((*it)->getPos().z) > 20.0f)
         {
-            bullets.pop_front();
+            it = bullets.erase(it);
             continue;
         }
+        
+        (*it)->updateBulletPos();
 
-        bullet->updateBulletPos();
-
-        if (player.CheckBulletCollision(bullet->getPos()))
+        if (player.CheckBulletCollision((*it)->getPos()))
+        {
             PlayerDied();
+            break;
+        }
+        it++;
+
     }
+
+    //for (auto& bullet : bullets)
+    //{
+    //    if (!bullet)
+    //        continue;
+    //    //if (glm::distance(bullet->getPos(),player.position) > 50) // yup memory leaks are fun
+    //    //{
+    //    //    bullets.pop_front();
+    //    //    continue;
+    //    //}
+    //    
+    //
+    //    bullet->updateBulletPos();
+    //
+    //    if (player.CheckBulletCollision(bullet->getPos()))
+    //        PlayerDied();
+    //}
 
 
     ResetScene();
@@ -658,7 +691,6 @@ void ResetScene()
         
         reset = false;
         shootingIsEnabled = true;
-
     }
 }
 
@@ -666,18 +698,18 @@ void PlayerDied()
 {
     shootingIsEnabled = false;
     player.speed = 0.0f;
+    player.position = glm::vec3(0.0f);
+
+    score = 0;
 
     for (auto& enemy:enemies)
-    {
         enemy.release();
-    }
 
     BackgroundColor = glm::vec4(0.7f, 0.1f, 0.1f, 1.0f);
 
    for (auto& b : bullets)
-   {
        b.release();
-   }
+
    bullets.erase(bullets.begin(), bullets.end());
 }
 
@@ -688,7 +720,31 @@ void spawnEnemies()
         if (enemy)
             continue;
 
-        enemy = std::make_unique<Enemy>();
+        //random point in a ring
+        float randfloat = glm::sqrt(glm::linearRand<float>(0, 1));
+        float bigR = 10.0f;
+        float smallR = 10.0f;
+
+        float theta = randfloat * 2 * glm::pi<float>();
+
+        float innerX = smallR * cos(theta);
+        float innerY = smallR * sin(theta);
+        float outerX = bigR * cos(theta);
+        float outerY = bigR * sin(theta); 
+        
+        glm::vec3 spawnPosition = glm::linearRand(
+            glm::vec3(
+                player.position.x + innerX,
+                0.0f,
+                player.position.y + innerY
+            ),
+            glm::vec3(
+                player.position.x + outerX,
+                0.0f,
+                player.position.y + outerY
+            ));
+        std::cout << spawnPosition.x << ", " << spawnPosition.y << ", " << spawnPosition.z << std::endl;
+        enemy = std::make_unique<Enemy>(spawnPosition);
     }
 }
 
