@@ -31,7 +31,10 @@ public:
 
 	void Move(glm::vec3 change)
 	{
-		position = position + speed * change;
+		if (glm::abs(position.x) < 20.0f && glm::abs(position.z) < 20.0f)
+			position = position + speed * change;
+		else
+			position = glm::vec3(0.0f);
 	}
 
 	void Update(float t, float g, float yPos)

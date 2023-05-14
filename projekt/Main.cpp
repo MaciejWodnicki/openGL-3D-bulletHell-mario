@@ -19,7 +19,6 @@
 #include <memory>
 #include <conio.h>
 
-
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
@@ -27,6 +26,8 @@ void spawnEnemies();
 void ResetScene();
 void PlayerDied();
 void updateScene();
+void onEnemyDeath(int enemyIndex);
+
 
 const unsigned int SCREEN_WIDTH = 1200;
 const unsigned int SCREEN_HEIGHT = 800;
@@ -45,8 +46,9 @@ const float max_g = -2.98f;
 float g = max_g;
 bool shootingIsEnabled = true;
 
-unsigned int maxEnemyCount = 5;
-std::vector<std::unique_ptr<Enemy>> enemies(maxEnemyCount);
+unsigned int defaultEnemyCount = 5;
+unsigned int enemyCount = defaultEnemyCount;
+std::vector<std::unique_ptr<Enemy>> enemies(enemyCount);
 std::deque<std::unique_ptr<Bullet>> bullets;
 
 int main()
@@ -611,27 +613,22 @@ void updateScene()
 
     spawnEnemies();
 
-    for (auto& enemy : enemies)
+    for (int i = 0; i<enemies.size(); i++)
     {
-        if (!enemy)
+        if (!enemies[i])
             continue;
         
         if (shootingIsEnabled)
         {
-            std::unique_ptr<Bullet> newBullet(enemy->RandomRoam(player.position, (float)glfwGetTime(), player.position.x-10, player.position.x + 10 )); // look for a spot around the player
+            std::unique_ptr<Bullet> newBullet(enemies[i]->RandomRoam(player.position, (float)glfwGetTime(), player.position.x-10, player.position.x + 10 )); // look for a spot around the player
             if(newBullet)
                 bullets.push_back(std::move(newBullet));
         }
 
-        int enemyCollision = player.CheckEnemyCollision(enemy->position);
+        int enemyCollision = player.CheckEnemyCollision(enemies[i]->position);
 
         if (enemyCollision == 2)
-        {
-            enemy.release();
-            score++;
-            system("CLS");
-            std::cout <<"Score: " << score << std::endl;
-        }
+            onEnemyDeath(i);
         else if (enemyCollision == 1)
             PlayerDied();
     }
@@ -657,24 +654,6 @@ void updateScene()
 
     }
 
-    //for (auto& bullet : bullets)
-    //{
-    //    if (!bullet)
-    //        continue;
-    //    //if (glm::distance(bullet->getPos(),player.position) > 50) // yup memory leaks are fun
-    //    //{
-    //    //    bullets.pop_front();
-    //    //    continue;
-    //    //}
-    //    
-    //
-    //    bullet->updateBulletPos();
-    //
-    //    if (player.CheckBulletCollision(bullet->getPos()))
-    //        PlayerDied();
-    //}
-
-
     ResetScene();
 
 }
@@ -688,7 +667,8 @@ void ResetScene()
         player.position = glm::vec3(0.0f, 0.0f, 0.0f);
         
         player.speed = 0.3f;
-        
+        enemyCount = defaultEnemyCount;
+
         reset = false;
         shootingIsEnabled = true;
     }
@@ -702,6 +682,7 @@ void PlayerDied()
 
     score = 0;
 
+    enemies.resize(defaultEnemyCount);
     for (auto& enemy:enemies)
         enemy.release();
 
@@ -711,18 +692,24 @@ void PlayerDied()
        b.release();
 
    bullets.erase(bullets.begin(), bullets.end());
+
+
+   //console prints
+   system("CLS");
+   std::cout << "Score: " << score << std::endl;
+   std::cout << "Enemy count: " << enemies.size() << std::endl;
 }
 
 void spawnEnemies()
 {
-    for (auto& enemy : enemies)
+    for (int i =0; i<enemies.size(); i++)
     {
-        if (enemy)
+        if (enemies[i])
             continue;
-
+        
         //random point in a ring
         float randfloat = glm::sqrt(glm::linearRand<float>(0, 1));
-        float bigR = 10.0f;
+        float bigR = 15.0f;
         float smallR = 10.0f;
 
         float theta = randfloat * 2 * glm::pi<float>();
@@ -743,9 +730,23 @@ void spawnEnemies()
                 0.0f,
                 player.position.y + outerY
             ));
-        std::cout << spawnPosition.x << ", " << spawnPosition.y << ", " << spawnPosition.z << std::endl;
-        enemy = std::make_unique<Enemy>(spawnPosition);
+        enemies[i] = std::make_unique<Enemy>(spawnPosition);
     }
+}
+void onEnemyDeath(int enmeyIndex)
+{
+    enemies[enmeyIndex].release();
+    score++;
+    if (score % 5 == 0)
+    {
+        enemyCount++;
+        enemies.resize(enemies.size() + 1);
+    }
+    
+    //console prints
+    system("CLS");
+    std::cout << "Score: " << score << std::endl;
+    std::cout << "Enemy count: " << enemies.size() << std::endl;
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
