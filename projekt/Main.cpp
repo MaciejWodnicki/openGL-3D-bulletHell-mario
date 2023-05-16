@@ -20,7 +20,9 @@
 #include <conio.h>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
+void getMousePos(GLFWwindow* window, double& xpos, double& ypos);
 
 void spawnEnemies();
 void ResetScene();
@@ -62,7 +64,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Mario?", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Mario Survivors", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -71,6 +73,8 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
@@ -344,7 +348,7 @@ int main()
 
     ///////////////////////////////////////////
     // configure depth map FBO
-    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create depth texture
@@ -421,7 +425,7 @@ int main()
         //Player
 
         ModelMatrix = glm::translate(glm::mat4(1.0f), player.position);
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, -player.rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
         glDrawArrays(GL_TRIANGLES, 6, 36);
@@ -433,6 +437,7 @@ int main()
                 continue;
             ModelMatrix = glm::translate(glm::mat4(1.0f), enemy->position);
             ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
             glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
             glDrawArrays(GL_TRIANGLES, 6, 36);
@@ -476,10 +481,16 @@ int main()
         //projection matrix
         glm::mat4 ProjMatrix = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.01f, 100.0f);
 
+        double mouseX, mouseY;
+        getMousePos(window, mouseX, mouseY);
+
+        mouseX = mouseX / 400;
+        mouseY = mouseY / 400;
+
         //view matrix
         glm::vec3 camera_destination = glm::vec3(player.position.x, 0.0f, player.position.z);
-        glm::vec3 camera_position = glm::vec3(player.position.x, 10.0f, player.position.z + 11.0f);
-        glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);;
+        glm::vec3 camera_position = glm::vec3(player.position.x + 11.0f * cos(mouseX), 3.0f, player.position.z + 11.0f * sin(mouseX));
+        glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 
         glm::mat4 ViewMatrix = glm::lookAt(camera_position, camera_destination, camera_up);
 
@@ -507,7 +518,7 @@ int main()
         //Ground
         ModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 1.0f, 2.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(4.0f, 1.0f, 4.0f));
         glUniformMatrix4fv(5, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
         glBindTexture(GL_TEXTURE_2D, textureGrassId);
@@ -520,7 +531,7 @@ int main()
         //Player
 
         ModelMatrix = glm::translate(glm::mat4(1.0f), player.position);
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, -player.rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         glUniformMatrix4fv(5, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
         glBindTexture(GL_TEXTURE_2D, texturePlayerId);
@@ -543,6 +554,7 @@ int main()
 
             ModelMatrix = glm::translate(glm::mat4(1.0f), enemy->position);
             ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
             glUniformMatrix4fv(5, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
             glDrawArrays(GL_TRIANGLES, 6, 36);
@@ -566,7 +578,7 @@ int main()
 
             glDrawArrays(GL_TRIANGLES, 6, 36);
         }
-        
+      
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -584,15 +596,23 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-        player.Move(glm::vec3(-player.speed, 0.0f, 0.0f));
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-        player.Move(glm::vec3(0.0f, 0.0f, -player.speed));
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-        player.Move(glm::vec3(0.0f, 0.0f, player.speed));
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-        player.Move(glm::vec3(player.speed, 0.0f, 0.0f));
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !(player.jump_active)) {
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        player.rotationAngle -= glm::radians(player.rotSpeed);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        player.rotationAngle += glm::radians(player.rotSpeed);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        float x = -player.speed * cos(player.rotationAngle);
+        float z = -player.speed * sin(player.rotationAngle);
+        player.Move(glm::vec3(x, 0.0f, z));
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        float x = player.speed * cos(player.rotationAngle);
+        float z = player.speed * sin(player.rotationAngle);
+        player.Move(glm::vec3(x, 0.0f, z));
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !(player.jump_active) && player.canJump) {
         player.jump_speed = player.max_jump_speed;
         g = max_g;
         player.jump_active = true;
@@ -603,9 +623,18 @@ void processInput(GLFWwindow* window)
         g = max_g * 0.05f;
         player.jump_speed = 0;
     }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && player.jump_active)
+        g = g * 10;
+
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
         reset = true; 
 }
+
+void getMousePos(GLFWwindow* window, double & xpos, double &ypos)
+{
+    glfwGetCursorPos(window, &xpos, &ypos);
+}
+
 
 void updateScene()
 {
@@ -636,8 +665,8 @@ void updateScene()
     for (auto it = bullets.begin(); it != bullets.end();)
     {
         if ((*it) == nullptr ||
-            glm::abs((*it)->getPos().x) > 20.0f ||
-            glm::abs((*it)->getPos().z) > 20.0f)
+            glm::abs((*it)->getPos().x) > player.movementBorders ||
+            glm::abs((*it)->getPos().z) > player.movementBorders)
         {
             it = bullets.erase(it);
             continue;
@@ -662,15 +691,27 @@ void ResetScene()
 {
     if (reset == true)
     {
+        for (auto& b : bullets)
+            b.release();
+
+        enemies.resize(defaultEnemyCount);
+        for (auto& enemy : enemies)
+            enemy.release();
+
+        bullets.erase(bullets.begin(), bullets.end());
+
         BackgroundColor = glm::vec4(0.7f, 0.7f, 0.9f, 1.0f);
+        //mouseDeltaX = glm::radians(90.0f);
         
         player.position = glm::vec3(0.0f, 0.0f, 0.0f);
         
-        player.speed = 0.3f;
+        player.speed = player.maxSpeed;
+        player.rotationAngle = player.initRotation;
         enemyCount = defaultEnemyCount;
 
         reset = false;
         shootingIsEnabled = true;
+        player.canJump = true;
     }
 }
 
@@ -679,20 +720,14 @@ void PlayerDied()
     shootingIsEnabled = false;
     player.speed = 0.0f;
     player.position = glm::vec3(0.0f);
+    player.canJump = false;
 
     score = 0;
 
-    enemies.resize(defaultEnemyCount);
-    for (auto& enemy:enemies)
-        enemy.release();
-
     BackgroundColor = glm::vec4(0.7f, 0.1f, 0.1f, 1.0f);
 
-   for (auto& b : bullets)
-       b.release();
-
-   bullets.erase(bullets.begin(), bullets.end());
-
+    for (auto& b : bullets)
+        b.release();
 
    //console prints
    system("CLS");
@@ -702,6 +737,7 @@ void PlayerDied()
 
 void spawnEnemies()
 {
+
     for (int i =0; i<enemies.size(); i++)
     {
         if (enemies[i])
@@ -709,8 +745,8 @@ void spawnEnemies()
         
         //random point in a ring
         float randfloat = glm::sqrt(glm::linearRand<float>(0, 1));
-        float bigR = 15.0f;
-        float smallR = 10.0f;
+        float bigR = 25.0f;
+        float smallR = 20.0f;
 
         float theta = randfloat * 2 * glm::pi<float>();
 
@@ -722,12 +758,12 @@ void spawnEnemies()
         glm::vec3 spawnPosition = glm::linearRand(
             glm::vec3(
                 player.position.x + innerX,
-                0.0f,
+                0.5f,
                 player.position.y + innerY
             ),
             glm::vec3(
                 player.position.x + outerX,
-                0.0f,
+                0.5f,
                 player.position.y + outerY
             ));
         enemies[i] = std::make_unique<Enemy>(spawnPosition);
@@ -752,4 +788,9 @@ void onEnemyDeath(int enmeyIndex)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
+}
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    
 }

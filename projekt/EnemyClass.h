@@ -36,7 +36,7 @@ public:
 		{
 			auto randVec2 = glm::linearRand(glm::vec2(minXY), glm::vec2(maxXY));
 			speed = glm::gaussRand(0.02f, 0.06f);
-			nextPosition = glm::vec3(randVec2.x, 0, randVec2.y);
+			nextPosition = glm::vec3(randVec2.x, position.y, randVec2.y);
 			isMoving = true;
 		}
 		if (glm::distance(position, nextPosition) < 2.0f)
@@ -59,7 +59,7 @@ public:
 		if (angle > 0.3f)
 			return std::unique_ptr<Bullet>();
 
-		gun = Gun(position, glm::normalize(target-position));
+		gun = Gun(glm::vec3(position.x,position.y+0.2f, position.z), glm::normalize(target - position));
 		return gun.shoot();
 	}
 };
