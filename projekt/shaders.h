@@ -1,5 +1,32 @@
 #pragma once
 
+
+////////////////////////////////////////////
+//
+//depthShaderProgram
+
+const char* depthVertexShaderSource = R"glsl(
+#version 430 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) uniform mat4 lightSpaceMatrix;
+layout (location = 2) uniform mat4 model;
+
+void main()
+{
+    gl_Position = lightSpaceMatrix * model * vec4(aPos, 1.0);
+}
+)glsl";
+
+const char* depthFragmentShaderSource = R"glsl(
+#version 430 core
+
+void main()
+{             
+    // gl_FragDepth = gl_FragCoord.z;
+}
+)glsl";
+
+
 ////////////////////////////////////////////
 //
 //shaderProgram
@@ -68,11 +95,11 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     // transform to [0,1] range
     projCoords = projCoords * 0.5 + 0.5;
     // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-    float closestDepth = texture(shadowMap, projCoords.xy).r + 0.01; //0.01 shift to address high shadowmap brigthness
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
     // get depth of current fragment from light's perspective
     float currentDepth = projCoords.z;
     // check whether current frag pos is in shadow
-    float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
+    float shadow = currentDepth - 0.05 > closestDepth  ? 1.0 : 0.0;
 
     return shadow;
 }
@@ -100,31 +127,6 @@ void main()
     vec3 lighting = (ambient + (1 - shadow) * (diffuse + specular));
     
     FragColor = vec4(lighting, 1.0) * texture(TextureSampler, UV) * CubeColor;
-}
-)glsl";
-
-////////////////////////////////////////////
-//
-//depthShaderProgram
-
-const char* depthVertexShaderSource = R"glsl(
-#version 430 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) uniform mat4 lightSpaceMatrix;
-layout (location = 2) uniform mat4 model;
-
-void main()
-{
-    gl_Position = lightSpaceMatrix * model * vec4(aPos, 1.0);
-}
-)glsl";
-
-const char* depthFragmentShaderSource = R"glsl(
-#version 430 core
-
-void main()
-{             
-    // gl_FragDepth = gl_FragCoord.z;
 }
 )glsl";
 

@@ -18,7 +18,7 @@ public:
 
 	float jumpTime = 0.0f;
 
-	const float rotSpeed = glm::radians(80.0f);
+	const float rotSpeed = glm::radians(100.0f);
 	const float initRotation = glm::radians(90.0f);
 	const float maxSpeed = 0.35f;
 	const float max_jump_speed = 0.8f;
@@ -59,17 +59,17 @@ public:
 
 	bool CheckBulletCollision(glm::vec3 bulletPos)
 	{
-		if (abs(position.x - bulletPos.x) < 0.5f && abs(position.y - bulletPos.y) < 0.5f && abs(position.z - bulletPos.z) < 0.5f)
+		if (abs(position.x - bulletPos.x) < 0.6f && abs(position.y - bulletPos.y) < 0.6f && abs(position.z - bulletPos.z) < 0.6f)
 			return true;
 		return false;
 	}
 
 	int CheckEnemyCollision(glm::vec3 enemyPos)
 	{
-		if (abs(position.x - enemyPos.x) < 1.2f && abs(position.z - enemyPos.z) < 1.2f
-			&& position.y - enemyPos.y > 0.4f && position.y - enemyPos.y < 1.0f)
+		if (abs(position.x - enemyPos.x) < 2.2f && abs(position.z - enemyPos.z) < 2.2f
+			&& position.y - enemyPos.y > 0.6f && position.y - enemyPos.y < 2.0f)
 			return 2;
-		else if (abs(position.x - enemyPos.x) < 1 && abs(position.y - enemyPos.y) < 0.1f && abs(position.z - enemyPos.z) < 1)
+		else if (abs(position.x - enemyPos.x) < 1 && abs(position.y - enemyPos.y) < 0.75f && abs(position.z - enemyPos.z) < 1)
 			return 1;
 		return 0;
 	}

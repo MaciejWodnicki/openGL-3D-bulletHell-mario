@@ -22,7 +22,7 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
-double mouseHorizontalDelta(GLFWwindow* window);
+void getMousePos(GLFWwindow* window, double& xpos, double& ypos);
 
 void spawnEnemies();
 void ResetScene();
@@ -39,7 +39,6 @@ int score = 0;
 
 double deltaT;
 
-double mouseDeltaX = 0;
 glm::vec4 BackgroundColor = glm::vec4(0.7f, 0.7f, 0.9f, 1.0f);
 bool reset = false;
 
@@ -349,7 +348,7 @@ int main()
 
     ///////////////////////////////////////////
     // configure depth map FBO
-    const unsigned int SHADOW_WIDTH = 4096, SHADOW_HEIGHT = 4096;
+    const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create depth texture
@@ -438,6 +437,7 @@ int main()
                 continue;
             ModelMatrix = glm::translate(glm::mat4(1.0f), enemy->position);
             ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
             glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
             glDrawArrays(GL_TRIANGLES, 6, 36);
@@ -481,14 +481,15 @@ int main()
         //projection matrix
         glm::mat4 ProjMatrix = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.01f, 100.0f);
 
-        mouseDeltaX += mouseHorizontalDelta(window)/400;
+        double mouseX, mouseY;
+        getMousePos(window, mouseX, mouseY);
 
-        //mouseDeltaX = glm::clamp<float>((float)mouseDeltaX, 0.0f, 1.0f);
-        std::cout << mouseDeltaX << std::endl;
+        mouseX = mouseX / 400;
+        mouseY = mouseY / 400;
 
         //view matrix
         glm::vec3 camera_destination = glm::vec3(player.position.x, 0.0f, player.position.z);
-        glm::vec3 camera_position = glm::vec3(player.position.x + 11.0f * cos(mouseDeltaX), 4.0f, player.position.z + 11.0f* sin(mouseDeltaX));
+        glm::vec3 camera_position = glm::vec3(player.position.x + 11.0f * cos(mouseX), 3.0f, player.position.z + 11.0f * sin(mouseX));
         glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 
         glm::mat4 ViewMatrix = glm::lookAt(camera_position, camera_destination, camera_up);
@@ -553,6 +554,7 @@ int main()
 
             ModelMatrix = glm::translate(glm::mat4(1.0f), enemy->position);
             ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
             glUniformMatrix4fv(5, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
 
             glDrawArrays(GL_TRIANGLES, 6, 36);
@@ -628,16 +630,9 @@ void processInput(GLFWwindow* window)
         reset = true; 
 }
 
-double previousX = 0;
-double mouseHorizontalDelta(GLFWwindow* window)
+void getMousePos(GLFWwindow* window, double & xpos, double &ypos)
 {
-    double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
-
-    double deltaX = xpos - previousX;
-
-    previousX = xpos;
-    return deltaX;
 }
 
 
@@ -696,8 +691,17 @@ void ResetScene()
 {
     if (reset == true)
     {
+        for (auto& b : bullets)
+            b.release();
+
+        enemies.resize(defaultEnemyCount);
+        for (auto& enemy : enemies)
+            enemy.release();
+
+        bullets.erase(bullets.begin(), bullets.end());
+
         BackgroundColor = glm::vec4(0.7f, 0.7f, 0.9f, 1.0f);
-        mouseDeltaX = glm::radians(90.0f);
+        //mouseDeltaX = glm::radians(90.0f);
         
         player.position = glm::vec3(0.0f, 0.0f, 0.0f);
         
@@ -720,17 +724,10 @@ void PlayerDied()
 
     score = 0;
 
-    enemies.resize(defaultEnemyCount);
-    for (auto& enemy:enemies)
-        enemy.release();
-
     BackgroundColor = glm::vec4(0.7f, 0.1f, 0.1f, 1.0f);
 
-   for (auto& b : bullets)
-       b.release();
-
-   bullets.erase(bullets.begin(), bullets.end());
-
+    for (auto& b : bullets)
+        b.release();
 
    //console prints
    system("CLS");
@@ -740,6 +737,7 @@ void PlayerDied()
 
 void spawnEnemies()
 {
+
     for (int i =0; i<enemies.size(); i++)
     {
         if (enemies[i])
@@ -747,8 +745,8 @@ void spawnEnemies()
         
         //random point in a ring
         float randfloat = glm::sqrt(glm::linearRand<float>(0, 1));
-        float bigR = 15.0f;
-        float smallR = 10.0f;
+        float bigR = 25.0f;
+        float smallR = 20.0f;
 
         float theta = randfloat * 2 * glm::pi<float>();
 
@@ -760,12 +758,12 @@ void spawnEnemies()
         glm::vec3 spawnPosition = glm::linearRand(
             glm::vec3(
                 player.position.x + innerX,
-                0.0f,
+                0.5f,
                 player.position.y + innerY
             ),
             glm::vec3(
                 player.position.x + outerX,
-                0.0f,
+                0.5f,
                 player.position.y + outerY
             ));
         enemies[i] = std::make_unique<Enemy>(spawnPosition);
