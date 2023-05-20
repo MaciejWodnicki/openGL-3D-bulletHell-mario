@@ -54,8 +54,8 @@ public:
 		lastShot = time;
 
 		glm::vec3 shootDirection = glm::normalize(target - position);
-		float angle = glm::acos(glm::length(glm::vec2(shootDirection.x, shootDirection.z))/ glm::length(shootDirection));
-		
+		float angle = glm::acos(glm::length(glm::vec2(shootDirection.x, shootDirection.z))); // from cosine definition, slightly faster than dot product method in this case
+
 		if (angle > 0.3f)
 			return std::unique_ptr<Bullet>();
 
