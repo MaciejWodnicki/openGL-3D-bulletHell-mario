@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/random.hpp>
+#include <glm/gtx/vector_angle.hpp >
 #include <iostream>
 
 class Enemy {
@@ -54,8 +55,9 @@ public:
 		lastShot = time;
 
 		glm::vec3 shootDirection = glm::normalize(target - position);
-		float angle = glm::acos(glm::length(glm::vec2(shootDirection.x, shootDirection.z))/ glm::length(shootDirection));
-		
+
+		float angle = glm::acos(glm::length(glm::vec2(shootDirection.x, shootDirection.z)));
+
 		if (angle > 0.3f)
 			return std::unique_ptr<Bullet>();
 
